@@ -199,12 +199,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Leaflet.js**: Interactive mapping library
 - **React Community**: UI framework and ecosystem
 
-## 📞 Support
-
-For support and questions:
-- Create an issue in this repository
-- Email: your-email@example.com
-- Emergency Contact: Chennai Emergency Services
 
 ---
 
