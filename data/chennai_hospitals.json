@@ -1,0 +1,108 @@
+{
+  "hospitals": [
+    {
+      "id": "apollo_greams",
+      "name": "Apollo Hospital Greams Road",
+      "latitude": 13.0569,
+      "longitude": 80.2497,
+      "type": "multi_specialty",
+      "emergency_level": "level_1_trauma",
+      "capacity": "high",
+      "specialties": ["cardiology", "neurology", "emergency", "trauma", "orthopedics"],
+      "cost": "expensive",
+      "phone": "+91-44-2829-3333",
+      "available": true
+    },
+    {
+      "id": "fortis_malar",
+      "name": "Fortis Malar Hospital",
+      "latitude": 13.0739,
+      "longitude": 80.2177,
+      "type": "multi_specialty",
+      "emergency_level": "level_1_trauma",
+      "capacity": "high",
+      "specialties": ["cardiology", "neurology", "emergency", "trauma", "oncology"],
+      "cost": "expensive",
+      "phone": "+91-44-4289-2222",
+      "available": true
+    },
+    {
+      "id": "stanley_medical",
+      "name": "Stanley Medical College Hospital",
+      "latitude": 13.0908,
+      "longitude": 80.2747,
+      "type": "government",
+      "emergency_level": "level_1_trauma",
+      "capacity": "very_high",
+      "specialties": ["emergency", "trauma", "general_surgery", "internal_medicine"],
+      "cost": "free",
+      "phone": "+91-44-2528-1835",
+      "available": true
+    },
+    {
+      "id": "vijaya_hospital",
+      "name": "Vijaya Hospital Vadapalani",
+      "latitude": 13.0493,
+      "longitude": 80.2137,
+      "type": "multi_specialty",
+      "emergency_level": "level_2",
+      "capacity": "medium",
+      "specialties": ["emergency", "general_surgery", "internal_medicine"],
+      "cost": "moderate",
+      "phone": "+91-44-2361-2151",
+      "available": true
+    },
+    {
+      "id": "gleneagles",
+      "name": "Gleneagles Global Hospital",
+      "latitude": 13.0077,
+      "longitude": 80.2419,
+      "type": "multi_specialty",
+      "emergency_level": "level_1_trauma",
+      "capacity": "high",
+      "specialties": ["emergency", "trauma", "cardiology", "neurology", "orthopedics"],
+      "cost": "expensive",
+      "phone": "+91-44-4477-4477",
+      "available": true
+    },
+    {
+      "id": "srm_medical",
+      "name": "SRM Medical College Hospital",
+      "latitude": 12.8230,
+      "longitude": 80.0444,
+      "type": "medical_college",
+      "emergency_level": "level_1_trauma",
+      "capacity": "high",
+      "specialties": ["emergency", "trauma", "general_surgery", "internal_medicine"],
+      "cost": "moderate",
+      "phone": "+91-44-4743-1085",
+      "available": true
+    },
+    {
+      "id": "miot",
+      "name": "MIOT International",
+      "latitude": 12.9915,
+      "longitude": 80.2207,
+      "type": "multi_specialty",
+      "emergency_level": "level_1_trauma",
+      "capacity": "high",
+      "specialties": ["emergency", "trauma", "cardiology", "neurology", "orthopedics", "transplant"],
+      "cost": "expensive",
+      "phone": "+91-44-2249-7777",
+      "available": true
+    },
+    {
+      "id": "omandurar",
+      "name": "Omandurar Government Multi Super Speciality Hospital",
+      "latitude": 13.0827,
+      "longitude": 80.2707,
+      "type": "government",
+      "emergency_level": "level_1_trauma",
+      "capacity": "very_high",
+      "specialties": ["emergency", "trauma", "general_surgery", "internal_medicine", "cardiology"],
+      "cost": "free",
+      "phone": "+91-44-2530-1414",
+      "available": true
+    }
+  ]
+}
