@@ -1,0 +1,190 @@
+{
+  "name": "Chennai EMS - Hospital Capacity Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule-check",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CHENNAI_EMS_BASE_URL}}/webhook/n8n/hospitals/status",
+        "options": {
+          "headers": {
+            "X-API-Key": "={{$env.N8N_API_KEY}}"
+          }
+        }
+      },
+      "id": "check-hospitals",
+      "name": "Check Hospital Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Analyze hospital capacity and ambulance availability\nconst data = $json.data;\nconst hospitals = data.hospitals;\nconst ambulances = data.ambulances;\n\n// Calculate metrics\nconst availableHospitals = hospitals.filter(h => h.available).length;\nconst totalHospitals = hospitals.length;\nconst availabilityRate = (availableHospitals / totalHospitals) * 100;\n\nconst availableAmbulances = ambulances.available;\nconst totalAmbulances = ambulances.total;\nconst ambulanceRate = (availableAmbulances / totalAmbulances) * 100;\n\n// Determine alert levels\nconst alerts = [];\n\n// Hospital capacity alerts\nif (availabilityRate < 50) {\n  alerts.push({\n    type: 'critical',\n    category: 'hospital_capacity',\n    message: `CRITICAL: Only ${availabilityRate.toFixed(1)}% of hospitals available (${availableHospitals}/${totalHospitals})`,\n    priority: 'high'\n  });\n} else if (availabilityRate < 70) {\n  alerts.push({\n    type: 'warning',\n    category: 'hospital_capacity',\n    message: `WARNING: Hospital availability at ${availabilityRate.toFixed(1)}% (${availableHospitals}/${totalHospitals})`,\n    priority: 'medium'\n  });\n}\n\n// Ambulance availability alerts\nif (ambulanceRate < 30) {\n  alerts.push({\n    type: 'critical',\n    category: 'ambulance_availability',\n    message: `CRITICAL: Only ${availableAmbulances} ambulances available (${ambulanceRate.toFixed(1)}%)`,\n    priority: 'high'\n  });\n} else if (ambulanceRate < 50) {\n  alerts.push({\n    type: 'warning',\n    category: 'ambulance_availability',\n    message: `WARNING: Low ambulance availability - ${availableAmbulances} units (${ambulanceRate.toFixed(1)}%)`,\n    priority: 'medium'\n  });\n}\n\n// Check individual hospital issues\nconst unavailableHospitals = hospitals.filter(h => !h.available);\nif (unavailableHospitals.length > 0) {\n  unavailableHospitals.forEach(hospital => {\n    alerts.push({\n      type: 'info',\n      category: 'hospital_unavailable',\n      message: `${hospital.name} is currently unavailable`,\n      hospital_id: hospital.id,\n      priority: 'low'\n    });\n  });\n}\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    metrics: {\n      hospital_availability: availabilityRate,\n      ambulance_availability: ambulanceRate,\n      available_hospitals: availableHospitals,\n      total_hospitals: totalHospitals,\n      available_ambulances: availableAmbulances,\n      total_ambulances: totalAmbulances\n    },\n    alerts,\n    needs_attention: alerts.some(a => a.priority === 'high'),\n    system_status: alerts.length === 0 ? 'optimal' : \n                   alerts.some(a => a.type === 'critical') ? 'critical' : 'warning'\n  }\n}];"
+      },
+      "id": "analyze-capacity",
+      "name": "Analyze Capacity",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.needs_attention}}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "needs-alert",
+      "name": "Needs Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#ops-alerts",
+        "text": "🏥 *Chennai EMS Capacity Alert*\\n\\n*System Status:* {{$json.system_status.toUpperCase()}}\\n*Hospital Availability:* {{$json.metrics.hospital_availability.toFixed(1)}}% ({{$json.metrics.available_hospitals}}/{{$json.metrics.total_hospitals}})\\n*Ambulance Availability:* {{$json.metrics.ambulance_availability.toFixed(1)}}% ({{$json.metrics.available_ambulances}}/{{$json.metrics.total_ambulances}})\\n\\n*Alerts:*\\n{{$json.alerts.map(a => `• ${a.message}`).join('\\n')}}\\n\\n<{{$env.CHENNAI_EMS_BASE_URL}}|View Chennai EMS Dashboard>",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "slack-capacity-alert",
+      "name": "Slack Capacity Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1120, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Emergency Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.system_status}}",
+              "operation": "equal",
+              "value2": "critical"
+            }
+          ]
+        }
+      },
+      "id": "is-critical",
+      "name": "Critical Status?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "resource": "call",
+        "operation": "make",
+        "from": "Chennai EMS",
+        "to": "+91XXXXXXXXXX",
+        "message": "Critical alert: Chennai Emergency Medical System capacity is severely limited. Only {{$json.metrics.available_hospitals}} hospitals and {{$json.metrics.available_ambulances}} ambulances available. Immediate attention required."
+      },
+      "id": "emergency-call",
+      "name": "Emergency Call",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1340, 400],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-credentials",
+          "name": "Twilio Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Check Hospital Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Hospital Status": {
+      "main": [
+        [
+          {
+            "node": "Analyze Capacity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Capacity": {
+      "main": [
+        [
+          {
+            "node": "Needs Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Alert?": {
+      "main": [
+        [
+          {
+            "node": "Slack Capacity Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Status?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Status?": {
+      "main": [
+        [
+          {
+            "node": "Emergency Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "createdAt": "2025-08-30T01:40:00.000Z",
+  "id": "hospital-capacity-monitor",
+  "tags": ["monitoring", "chennai-ems", "hospitals", "capacity"]
+}

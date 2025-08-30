@@ -1,0 +1,208 @@
+{
+  "name": "Chennai EMS - Emergency Dispatch",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emergency-alert",
+        "options": {}
+      },
+      "id": "webhook-emergency",
+      "name": "Emergency Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "emergency-dispatch-001"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process emergency data\nconst emergencyData = {\n  location: $json.location || 'Location unknown',\n  latitude: parseFloat($json.latitude) || 13.0827,\n  longitude: parseFloat($json.longitude) || 80.2707,\n  emergency_type: $json.emergency_type || 'medical',\n  priority: $json.priority || 'high',\n  caller_name: $json.caller_name,\n  phone_number: $json.phone_number,\n  description: $json.description,\n  timestamp: new Date().toISOString(),\n  webhook_id: 'n8n-emergency-001',\n  external_id: $json.ticket_id || Date.now().toString()\n};\n\n// Validate emergency type\nif (!['medical', 'trauma'].includes(emergencyData.emergency_type)) {\n  emergencyData.emergency_type = 'medical';\n}\n\n// Validate priority\nif (!['critical', 'high', 'medium'].includes(emergencyData.priority)) {\n  emergencyData.priority = 'high';\n}\n\nreturn [{ json: emergencyData }];"
+      },
+      "id": "process-emergency",
+      "name": "Process Emergency Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CHENNAI_EMS_BASE_URL}}/webhook/n8n/emergency",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{JSON.stringify($json)}}",
+        "options": {
+          "headers": {
+            "X-API-Key": "={{$env.N8N_API_KEY}}"
+          }
+        }
+      },
+      "id": "dispatch-emergency",
+      "name": "Dispatch to Chennai EMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.success}}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "check-success",
+      "name": "Dispatch Successful?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Format SMS alert message\nconst emergency = $json.data;\nconst timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });\n\nconst message = `🚨 EMERGENCY DISPATCH ALERT\\n\\n` +\n                `ID: ${emergency.emergency_id}\\n` +\n                `Type: ${emergency.nearest_hospitals[0]?.emergency_type?.toUpperCase() || 'MEDICAL'}\\n` +\n                `Location: ${$('process-emergency').item.json.location}\\n` +\n                `Hospital: ${emergency.recommended_hospital?.name || 'TBD'}\\n` +\n                `ETA: ${emergency.estimated_dispatch_time || 'TBD'} min\\n` +\n                `Time: ${timestamp}\\n\\n` +\n                `Chennai EMS System - Auto Dispatch`;\n\nreturn [{\n  json: {\n    message,\n    phone_numbers: [\n      '+91XXXXXXXXXX', // Dispatch team\n      '+91XXXXXXXXXX'  // Supervisor\n    ],\n    emergency_id: emergency.emergency_id,\n    priority: $('process-emergency').item.json.priority\n  }\n}];"
+      },
+      "id": "format-sms",
+      "name": "Format SMS Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "from": "Chennai EMS",
+        "toList": "={{$json.phone_numbers.join(',')}}",
+        "message": "={{$json.message}}"
+      },
+      "id": "send-sms",
+      "name": "Send SMS Alert",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1340, 200],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-credentials",
+          "name": "Twilio Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#emergency-dispatch",
+        "text": "🚨 *Emergency Dispatch Alert*\\n\\n*ID:* {{$('dispatch-emergency').item.json.data.emergency_id}}\\n*Type:* {{$('process-emergency').item.json.emergency_type.toUpperCase()}}\\n*Priority:* {{$('process-emergency').item.json.priority.toUpperCase()}}\\n*Location:* {{$('process-emergency').item.json.location}}\\n*Hospital:* {{$('dispatch-emergency').item.json.data.recommended_hospital.name}}\\n*ETA:* {{$('dispatch-emergency').item.json.data.estimated_dispatch_time}} minutes\\n\\n<{{$env.CHENNAI_EMS_BASE_URL}}|View in Chennai EMS Dashboard>",
+        "otherOptions": {
+          "mrkdwn": true
+        }
+      },
+      "id": "slack-alert",
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Emergency Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "❌ **Emergency Dispatch Failed**\\n\\nFailed to dispatch emergency call to Chennai EMS system.\\n\\nError: {{$json.error}}\\n\\nPlease check system status and try manual dispatch.",
+        "channel": "#emergency-dispatch",
+        "username": "Chennai EMS Bot"
+      },
+      "id": "error-alert",
+      "name": "Error Alert",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 1,
+      "position": [1120, 400],
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "discord-webhook",
+          "name": "Emergency Discord"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Emergency Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Emergency Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Emergency Data": {
+      "main": [
+        [
+          {
+            "node": "Dispatch to Chennai EMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch to Chennai EMS": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Successful?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Successful?": {
+      "main": [
+        [
+          {
+            "node": "Format SMS Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format SMS Alert": {
+      "main": [
+        [
+          {
+            "node": "Send SMS Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "createdAt": "2025-08-30T01:40:00.000Z",
+  "id": "emergency-dispatch-workflow",
+  "tags": ["emergency", "chennai-ems", "dispatch"]
+}
